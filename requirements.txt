@@ -1,0 +1,10 @@
+# CSV Combiner - No external dependencies required
+# This script uses only Python standard library modules:
+# - csv
+# - os 
+# - sys
+# - glob
+# - collections
+# - typing
+
+# Python 3.6+ is required
