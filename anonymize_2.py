@@ -9,7 +9,7 @@ def anonymize_value(value):
 def process_file(input_file, output_file=None):
     """Process the input file and anonymize each line"""
     try:
-        with open(input_file, 'r', encoding='utf-8') as f:
+        with open(input_file, 'r', encoding='utf-8', errors='replace') as f:
             lines = f.readlines()
         
         anonymized_lines = []

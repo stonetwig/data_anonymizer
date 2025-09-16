@@ -12,15 +12,24 @@ Configuration:
 """
 
 # CONFIGURATION - Change this path to your desired input folder
-INPUT_FOLDER = "."  # Current directory - change to your CSV folder path
+INPUT_FOLDER = "/home/markus/Documents/leaks/miljodata"  # Current directory - change to your CSV folder path
 OUTPUT_FILE = "out.csv"
 
 import csv
 import os
 import sys
 import glob
+import chardet
 from collections import OrderedDict
 from typing import List, Dict, Set
+
+
+def detect_encoding(file_path: str) -> str:
+    """Detect the encoding of a file."""
+    with open(file_path, 'rb') as f:
+        raw_data = f.read()
+        result = chardet.detect(raw_data)
+        return result['encoding'] or 'utf-8'
 
 
 def normalize_column_name(col_name: str) -> str:
@@ -40,7 +49,8 @@ def get_unified_columns(csv_files: List[str]) -> Dict[str, str]:
     
     for csv_file in csv_files:
         try:
-            with open(csv_file, 'r', encoding='utf-8', newline='') as f:
+            encoding = detect_encoding(csv_file)
+            with open(csv_file, 'r', encoding=encoding, newline='') as f:
                 reader = csv.reader(f)
                 header = next(reader, None)
                 
@@ -66,7 +76,8 @@ def read_csv_data(csv_file: str, column_mapping: Dict[str, str]) -> List[Dict[st
     data = []
     
     try:
-        with open(csv_file, 'r', encoding='utf-8', newline='') as f:
+        encoding = detect_encoding(csv_file)
+        with open(csv_file, 'r', encoding=encoding, newline='') as f:
             reader = csv.DictReader(f)
             
             for row in reader:
@@ -137,7 +148,9 @@ def combine_csv_files():
         
         # Show column mapping for this file
         try:
-            with open(csv_file, 'r', encoding='utf-8', newline='') as f:
+            encoding = detect_encoding(csv_file)
+            print(f"  Detected encoding: {encoding}")
+            with open(csv_file, 'r', encoding=encoding, newline='') as f:
                 reader = csv.reader(f)
                 header = next(reader, None)
                 

@@ -14,8 +14,12 @@ Configuration:
 """
 
 # CONFIGURATION
-INPUT_FILE = "out.csv"
+INPUT_FILE = "/home/markus/Documents/leaks/miljodata/out.csv"
 OUTPUT_FILE = "out_anonymized.csv"
+
+# Hash configuration for efficient anonymization
+HASH_LENGTH = 16  # Use first 16 chars of hash (reduces collision risk while saving space)
+USE_MAPPING_TABLE = True  # Create a separate mapping file for reversible anonymization
 
 import csv
 import hashlib
@@ -23,15 +27,16 @@ import os
 import sys
 
 
-def anonymize_value(value: str) -> str:
+def anonymize_value(value: str, mapping_table: dict = None) -> str:
     """
-    Anonymize a single value using SHA256 hashing.
+    Anonymize a single value using truncated SHA256 hashing.
     
     Args:
         value: The original value to anonymize
+        mapping_table: Optional dict to store original->hash mappings
         
     Returns:
-        SHA256 hash of the processed value
+        Truncated SHA256 hash of the processed value
     """
     if not value or value.strip() == "":
         return ""  # Keep empty values as empty
@@ -39,7 +44,14 @@ def anonymize_value(value: str) -> str:
     # Apply the specified hashing algorithm
     processed_value = value.strip().lower()
     hash_object = hashlib.sha256(processed_value.encode())
-    return hash_object.hexdigest()
+    full_hash = hash_object.hexdigest()
+    truncated_hash = full_hash[:HASH_LENGTH]
+    
+    # Store mapping if table provided
+    if mapping_table is not None:
+        mapping_table[truncated_hash] = processed_value
+    
+    return truncated_hash
 
 
 def anonymize_csv():
@@ -66,6 +78,7 @@ def anonymize_csv():
     anonymized_rows = []
     original_headers = []
     total_values_processed = 0
+    mapping_table = {} if USE_MAPPING_TABLE else None
     
     try:
         # Read the input CSV
@@ -90,7 +103,7 @@ def anonymize_csv():
                 # Anonymize each value in the row
                 for header in original_headers:
                     original_value = row.get(header, "")
-                    anonymized_value = anonymize_value(original_value)
+                    anonymized_value = anonymize_value(original_value, mapping_table)
                     anonymized_row[header] = anonymized_value
                     
                     if original_value.strip():  # Count non-empty values
@@ -110,9 +123,19 @@ def anonymize_csv():
             writer.writeheader()
             writer.writerows(anonymized_rows)
         
+        # Save mapping table if enabled
+        if USE_MAPPING_TABLE and mapping_table:
+            mapping_file = OUTPUT_FILE.replace('.csv', '_mapping.json')
+            import json
+            with open(mapping_file, 'w', encoding='utf-8') as mapfile:
+                json.dump(mapping_table, mapfile, indent=2)
+            print(f"Mapping table saved as: {mapping_file}")
+        
         print(f"\nAnonymization completed successfully!")
         print(f"Total values anonymized: {total_values_processed}")
+        print(f"Unique values in mapping: {len(mapping_table) if mapping_table else 'N/A'}")
         print(f"Output saved as: {OUTPUT_FILE}")
+        print(f"Hash length: {HASH_LENGTH} characters (vs 64 for full SHA256)")
         
         # Show a preview of the anonymized data
         print(f"\nPreview of anonymized data (first 3 rows):")
@@ -120,9 +143,7 @@ def anonymize_csv():
         
         for i, row in enumerate(anonymized_rows[:3]):
             values = [row.get(col, "") for col in original_headers]
-            # Truncate long hashes for display
-            display_values = [v[:16] + "..." if len(v) > 16 else v for v in values]
-            print(f"Row {i+1}: {display_values}")
+            print(f"Row {i+1}: {values}")
             
     except Exception as e:
         print(f"Error processing CSV file: {e}")
